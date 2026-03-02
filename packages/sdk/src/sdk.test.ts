@@ -303,6 +303,82 @@ describe("Giselle SDK (public Runs API)", () => {
 		});
 	});
 
+	it("app.runAndWait() returns status task when includeGenerations response omits outputType", async () => {
+		let callIndex = 0;
+		const fetchMock = vi.fn((url: unknown, init?: RequestInit) => {
+			callIndex += 1;
+			const headers = new Headers(init?.headers);
+
+			if (callIndex === 1) {
+				expect(url).toBe("https://example.com/api/apps/app-xxxxx/run");
+				expect(init?.method).toBe("POST");
+				expect(headers.get("Authorization")).toBe("Bearer apk_test.secret");
+				return new Response(JSON.stringify({ taskId: "tsk_123" }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+
+			if (callIndex === 2) {
+				expect(url).toBe(
+					"https://example.com/api/apps/app-xxxxx/tasks/tsk_123",
+				);
+				expect(init?.method).toBe("GET");
+				expect(headers.get("Authorization")).toBe("Bearer apk_test.secret");
+				return new Response(
+					JSON.stringify({ task: { id: "tsk_123", status: "failed" } }),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
+			expect(url).toBe(
+				"https://example.com/api/apps/app-xxxxx/tasks/tsk_123?includeGenerations=1",
+			);
+			expect(init?.method).toBe("GET");
+			expect(headers.get("Authorization")).toBe("Bearer apk_test.secret");
+			return new Response(
+				JSON.stringify({
+					task: {
+						id: "tsk_123",
+						status: "failed",
+						workspaceId: "ws_123",
+						name: "My Task",
+						steps: [],
+					},
+				}),
+				{
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		});
+
+		const client = new Giselle({
+			baseUrl: "https://example.com",
+			apiKey: "apk_test.secret",
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await expect(
+			client.apps.runAndWait({
+				appId: "app-xxxxx",
+				input: { text: "hello" },
+				pollIntervalMs: 0,
+			}),
+		).resolves.toEqual({
+			task: {
+				id: "tsk_123",
+				status: "failed",
+				workspaceId: "ws_123",
+				name: "My Task",
+				steps: [],
+			},
+		});
+	});
+
 	it("app.runAndWait() returns passthrough task result when outputType is passthrough", async () => {
 		let callIndex = 0;
 		const fetchMock = vi.fn((url: unknown, init?: RequestInit) => {

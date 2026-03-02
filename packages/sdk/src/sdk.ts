@@ -330,7 +330,7 @@ function parseTaskResponseJson(json: unknown): AppTaskResultOrStatus {
 		return { task: task as PassthroughAppTask };
 	}
 
-	throw new Error("Invalid response JSON");
+	return { task: task as TaskWithStatus };
 }
 
 export default class Giselle {
